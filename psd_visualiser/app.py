@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 DISCLAIMER = (
     "This visualisation tool was created by Michael Kreuziger for the course Part III "
     "Planetary System Dynamics (lecturer: Mark Wyatt) at the University of Cambridge. "
-    "Please feel free to change the source code (also on Moodle) or add your own modules. "
+    "Please feel free to add your own modules to your local installation. "
     "If you find any issues or have any questions, please feel free to contact me "
     "“mk2205@cam.ac.uk”. Codex 6.1 Sol was used to create the initial code, which was "
     "then checked and tested."
