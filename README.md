@@ -1,6 +1,6 @@
 # Planetary System Dynamics
 
-This is a Python tool for the Part III course on "Planetary System Dynamics" at the University of Cambridge.
+This is a small Python tool for the Part III course on "Planetary System Dynamics" at the University of Cambridge.
 
 Available visualisations (will be expanded throughout the course):
 - **Orbital elements:** explore the effects of the six orbital elements on a 3D orbit
