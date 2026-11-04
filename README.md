@@ -61,12 +61,6 @@ docs/
     SCIENCE.md             Equations, conventions, and textbook references
     VALIDATION.md          Checks performed and their limits
 ```
-## Add a teaching module
-
-1. Add calculations under `psd_visualiser/models/` and numerical tests under `tests/`.
-2. Add a `QWidget` page under `psd_visualiser/pages/`; shared controls are in `widgets.py`.
-3. Implement `on_enter()` and `on_leave()`. Stop timers in `on_leave()`; static pages can use empty methods.
-4. Register a factory returning the page with `ModuleSpec(key, title, description, factory)` in `app.py`’s `MODULES`. This adds it to Home and the toolbar.
 
 ## References
 
