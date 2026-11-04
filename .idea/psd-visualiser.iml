@@ -5,8 +5,4 @@
     <orderEntry type="jdk" jdkName="$MODULE_DIR$/../../ioasoft/software/miniforge3/envs/python-3.11-2026-07a" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
-  <component name="PackageRequirementsSettings" />
-  <component name="PyDocumentationSettings" />
-  <component name="ReSTService" />
-  <component name="TestRunnerService" />
 </module>

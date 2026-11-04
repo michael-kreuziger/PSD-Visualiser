@@ -6,6 +6,12 @@ Available visualisations (will be expanded throughout the course):
 - **Orbital elements:** explore the effects of the six orbital elements on a 3D orbit
 - **Guiding centre:** explore how the guiding-centre approximation works and compares to the exact solution.
 - **Averaging sin I:** see where uniformly drawn orbit orientations, i.e., angular-momentum directions fall on a sphere
+
+<p>
+  <img src="docs/Screenshot_orbital_elements.png" alt="Orbital elements visualisation" width="49%">
+  <img src="docs/Screenshot_guiding_centre.png" alt="Guiding centre visualisation" width="49%">
+</p>
+
 ## Run from source
 
 Requires Python 3.11+ and a graphical desktop.
