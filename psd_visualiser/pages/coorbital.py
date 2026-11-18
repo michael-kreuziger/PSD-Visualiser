@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 
 from psd_visualiser.models.coorbital import (
     ROUTH_MU, checked_example, effective_potential, integrate_orbit, lagrange_points, recommended_angle_range,
-    rotating_to_inertial,
+    osculating_eccentricity, rotating_to_inertial,
 )
 from psd_visualiser.widgets import (
     BLUE, GREEN, MUTED, ORANGE, PURPLE, TEXT, PlotPanel, SliderControl,
@@ -58,7 +58,7 @@ class CoorbitalPage(QWidget):
         side.addWidget(self.centre_selector)
         self.auto_example = QCheckBox("Choose family starts automatically")
         self.auto_example.setChecked(True)
-        self.auto_example.setToolTip("When μ or the family changes, find a launch checked over several reference times at that same μ. Manual longitude and radial-speed edits remain available.")
+        self.auto_example.setToolTip("When μ or the family changes, find a launch checked over several reference times at that same μ and initial eccentricity. Manual longitude and eccentricity edits remain available.")
         side.addWidget(self.auto_example)
         self.example_button = QPushButton("Load checked example at this μ")
         side.addWidget(self.example_button)
@@ -69,9 +69,11 @@ class CoorbitalPage(QWidget):
         side.addWidget(note("μ = mplanet / (mstar + mplanet).\nThe slider uses a logarithmic scale."))
         self.angle = SliderControl("Starting longitude", 20, 85, 40, step=.001, decimals=3, suffix="°")
         side.addWidget(self.angle)
-        self.radial_speed = SliderControl("Initial radial speed / (na)", 0, .01, 0, step=.0001, decimals=4)
-        self.radial_speed.setToolTip("An initial outward rotating-frame radial velocity from 0 to 0.01 na. This excites epicyclic motion; it is not an exact eccentricity.")
-        side.addWidget(self.radial_speed)
+        self.eccentricity = SliderControl("Initial eccentricity e₀", 0, .01, 0, step=.0001, decimals=4)
+        self.eccentricity.setToolTip("Initial star-centred osculating eccentricity, from 0 to 0.01. Position and both velocity components are calculated consistently at fixed semimajor axis and eccentric anomaly E₀ = 90°.")
+        side.addWidget(self.eccentricity)
+        self.eccentricity_note = note("Starting phase: E₀ = 90° (outward). The initial Kepler period matches the planet’s; eccentricity can evolve.")
+        side.addWidget(self.eccentricity_note)
         self.epicycle_button = QPushButton("Epicyclic tadpole example")
         side.addWidget(self.epicycle_button)
         self.duration = SliderControl("Integration length / Tref", 1, 3, 2, step=.5, decimals=1)
@@ -109,7 +111,8 @@ class CoorbitalPage(QWidget):
         self.status = note("")
         side.addWidget(self.status)
         side.addWidget(section_title("Reading the diagram"))
-        side.addWidget(note("Initial star–particle distance = a. Longitude is measured from the star–planet line. The radial-speed control selects an outward velocity from 0 to 0.01 na; initial rotating tangential speed is zero. This excites epicyclic motion."))
+        side.addWidget(note("e₀ specifies the initial osculating Kepler ellipse about the star. Its semimajor axis is a₀ = (1 − μ)^(1/3), so its initial Kepler mean motion is n = 1. E₀ = 90° fixes the outward phase. Starting longitude measures the actual star-to-particle direction from the star–planet line."))
+        side.addWidget(note("The planet perturbs the particle’s eccentricity during motion. Even e₀ = 0 describes an initially circular osculating orbit, not an exact circular CR3BP trajectory or an exact Lagrange-point equilibrium."))
         side.addWidget(note("Changing initial conditions can change the orbit family. A family selection supplies starting conditions; it does not guarantee the subsequent motion."))
         side.addWidget(note("At 1×: one reference time Tref in 12 s in the corotating view; one planet period in 6 s in the inertial view. Use the time slider to explore the full history."))
         side.addWidget(note("Tadpoles librate about L4 or L5. Horseshoes pass around L3, L4 and L5, turning back before the planet. The lower panel measures the particle’s polar longitude about the star relative to the planet."))
@@ -146,7 +149,7 @@ class CoorbitalPage(QWidget):
         self.recompute_timer.timeout.connect(self._recompute)
         self.orbit_selector.currentIndexChanged.connect(self._family_changed)
         self.mass_ratio.valueChanged.connect(self._mass_changed)
-        for control in (self.angle, self.radial_speed):
+        for control in (self.angle, self.eccentricity):
             control.valueChanged.connect(self._initial_conditions_changed)
         self.duration.valueChanged.connect(self._schedule_recompute)
         self.centre_selector.currentIndexChanged.connect(self._centre_changed)
@@ -274,7 +277,7 @@ class CoorbitalPage(QWidget):
     def _load_example(self, family):
         self._example_pending = False
         centre = "L5" if family == "tadpole" and self.centre_selector.currentIndex() else "L4"
-        example = checked_example(self.mu, family, centre=centre)
+        example = checked_example(self.mu, family, centre=centre, eccentricity=self.eccentricity.value())
         self._checked_example = example
         if example is None:
             explanation = (" L4/L5 are linearly unstable here." if family == "tadpole" and self.mu >= ROUTH_MU else "")
@@ -283,12 +286,12 @@ class CoorbitalPage(QWidget):
                 + explanation + " The current launch is exploratory; μ is unchanged."
             )
             return
-        for control, value in ((self.angle, abs(example.angle_deg)), (self.radial_speed, example.radial_speed)):
+        for control, value in ((self.angle, abs(example.angle_deg)), (self.eccentricity, example.eccentricity)):
             blocked = control.blockSignals(True)
             control.set_value(value)
             control.blockSignals(blocked)
         self.example_note.setText(
-            f"Checked {example.classification} at μ = {self.mu:.4g} over {example.checked_periods:g} Tref. "
+            f"Checked {example.classification} at μ = {self.mu:.4g}, e₀ = {example.eccentricity:.4f}, over {example.checked_periods:g} Tref. "
             "This finite check does not establish permanent stability."
         )
 
@@ -322,10 +325,10 @@ class CoorbitalPage(QWidget):
             self._load_example(family)
         self._update_duration_note()
         angle = self.angle.value() * (-1 if not horse and self.centre_selector.currentIndex() else 1)
-        key = (self.mu, family, angle, self.duration.value(), self.radial_speed.value())
+        key = (self.mu, family, angle, self.duration.value(), self.eccentricity.value())
         try:
             if key not in self._cache:
-                self._cache[key] = integrate_orbit(self.mu, family, angle, periods=self.duration.value(), radial_speed=self.radial_speed.value())
+                self._cache[key] = integrate_orbit(self.mu, family, angle, periods=self.duration.value(), eccentricity=self.eccentricity.value())
                 if len(self._cache) > 6:
                     self._cache.popitem(last=False)
             self.trajectory = self._cache[key]
@@ -343,6 +346,7 @@ class CoorbitalPage(QWidget):
         theta = np.linspace(0, 2*np.pi, 721)
         self._reference = np.column_stack((np.cos(theta) - self._orbit_mu, np.sin(theta)))
         states = self.trajectory.states
+        self._eccentricities = osculating_eccentricity(states, self._orbit_mu)
         self._extent = max(1.65, 1.05*np.max(np.linalg.norm(states[:, :2], axis=1)))
         self._angles = np.rad2deg(np.arctan2(states[:, 1], states[:, 0] + self._orbit_mu)) % 360
         wraps = np.concatenate(([False], np.abs(np.diff(self._angles)) > 180))
@@ -452,6 +456,8 @@ class CoorbitalPage(QWidget):
             f"<b>μ = {self._orbit_mu:.6g}</b><br>"
             f"Time = {time/(2*np.pi):.2f} planet periods<br>"
             f"Rotating speed = {speed:.5f} na<br>"
+            f"Initial e₀ = {self._eccentricities[0]:.5f}<br>"
+            f"Current osculating e = {self._eccentricities[index]:.5f}<br>"
             f"Jacobi C₀ = {jacobi[0]:.8f}<br>Max |ΔC| = {drift:.2e}"
         )
         self.status.setText(f"Measured motion: {trajectory.classification}. {trajectory.message}")
@@ -503,7 +509,7 @@ class CoorbitalPage(QWidget):
         self._pause()
         self.recompute_timer.stop()
         controls = (self.orbit_selector, self.centre_selector, self.frame_selector,
-                    self.mass_ratio, self.angle, self.radial_speed, self.duration, self.speed,
+                    self.mass_ratio, self.angle, self.eccentricity, self.duration, self.speed,
                     self.show_contours, self.contour_speed, self.auto_example)
         for control in controls:
             control.blockSignals(True)
@@ -513,7 +519,7 @@ class CoorbitalPage(QWidget):
         self.frame_selector.setCurrentIndex(0)
         self.mass_ratio.set_value(-3)
         self._set_angle_range(20, 85, 40)
-        self.radial_speed.set_value(0)
+        self.eccentricity.set_value(0)
         self.duration.set_value(2)
         self.speed.set_value(1)
         self.show_contours.setChecked(False)
@@ -530,8 +536,8 @@ class CoorbitalPage(QWidget):
     def _epicyclic_example(self):
         self.reset()
         self.angle.set_value(60)
-        self.radial_speed.set_value(.01)
+        self.eccentricity.set_value(.01)
         self.duration.set_value(3)
         self.contour_speed.set_value(.02)
         self._recompute()
-        self.example_note.setText("Epicyclic tadpole example checked over 3 Tref at μ = 0.001. This is a finite-duration example.")
+        self.example_note.setText("Epicyclic tadpole example with e₀ = 0.01 checked over 3 Tref at μ = 0.001. This is a finite-duration example.")

@@ -29,9 +29,11 @@ HORSESHOE_ANGLE_RANGE = (12.0, 23.0)
 def recommended_angle_range(mu, orbit):
     """UI ranges, including exploratory launches outside the checked envelope.
 
-    The smaller horseshoe range at mu<=.001 was checked for zero initial
-    rotating velocity. Wider tadpole angles, higher mu, and radial kicks
-    may leave the requested family. These are not stability boundaries.
+    The smaller horseshoe range at mu<=.001 was checked for the legacy
+    unit-radius, zero-rotating-velocity launch. Changed osculating elements,
+    wider tadpole angles, higher mu, or radial kicks may leave the requested
+    family. ``checked_example`` verifies the actual launch separately.
+    These are not stability boundaries.
     """
     _validate_mu(mu)
     if orbit == "tadpole":
@@ -142,6 +144,49 @@ def initial_state(mu, orbit, angle_deg, *, radial_speed=0.):
                      radial_speed*np.cos(angle), radial_speed*np.sin(angle)])
 
 
+def _validate_eccentricity(eccentricity):
+    if not np.isfinite(eccentricity) or not 0 <= eccentricity < 1:
+        raise ValueError("eccentricity must satisfy 0 <= eccentricity < 1")
+
+
+def initial_state_from_eccentricity(mu, orbit, angle_deg, eccentricity):
+    """Exact star-centred osculating Kepler elements for an outward launch.
+
+    The fixed osculating semimajor axis a0=(1-mu)^(1/3) gives initial Kepler
+    mean motion sqrt((1-mu)/a0^3)=1.  E0=pi/2 fixes the eccentric phase:
+    r=a0, v_r=a0*e0, v_t=a0*sqrt(1-e0^2). The polar longitude is angle_deg;
+    its periapse direction is therefore angle_deg-acos(-e0). Velocities are
+    converted from star-relative inertial components to the rotating frame.
+    These osculating elements evolve under the planet's gravity.
+    """
+    initial_state(mu, orbit, angle_deg)  # Shared mu/family/longitude validation.
+    _validate_eccentricity(eccentricity)
+    angle = np.deg2rad(angle_deg)
+    radial = np.array([np.cos(angle), np.sin(angle)])
+    tangential = np.array([-radial[1], radial[0]])
+    a0 = np.cbrt(1-mu)
+    position = a0*radial - [mu, 0.]
+    velocity = a0*(eccentricity*radial + (np.sqrt(1-eccentricity**2)-1)*tangential)
+    return np.concatenate((position, velocity))
+
+
+def osculating_eccentricity(states, mu):
+    """Instantaneous star-centred two-body eccentricity of (...,4) states.
+
+    The inertial star-relative velocity, in rotating components, is
+    v_rot + zhat cross (r_particle-r_star).  The planet perturbs these
+    osculating elements; neither eccentricity nor Kepler energy is conserved.
+    """
+    _validate_mu(mu)
+    states = np.asarray(states, dtype=float)
+    x, y = states[..., 0]+mu, states[..., 1]
+    vx, vy = states[..., 2]-y, states[..., 3]+x
+    radius = np.hypot(x, y)
+    h = x*vy-y*vx
+    ex, ey = vy*h/(1-mu)-x/radius, -vx*h/(1-mu)-y/radius
+    return np.hypot(ex, ey)
+
+
 @dataclass(frozen=True)
 class Trajectory:
     times: np.ndarray
@@ -160,6 +205,7 @@ class CheckedExample:
     classification: str
     checked_periods: float
     jacobi_drift: float
+    eccentricity: float | None = None
 
 
 def _classify(states, mu):
@@ -187,12 +233,15 @@ def _classify(states, mu):
 
 
 def integrate_orbit(mu, orbit, angle_deg, periods=2., samples=None,
-                    *, radial_speed=0., rtol=2e-10, atol=2e-12):
+                    *, radial_speed=0., eccentricity=None, rtol=2e-10, atol=2e-12):
     """Integrate using adaptive Dormand–Prince 5(4), with sampled output.
 
     ``periods`` counts the reference timescale T_ref=2pi/sqrt(27mu/4).
     This is a small-mu, small-amplitude libration estimate only; it is not
     a physical libration period at large mu or above the stability limit.
+    An explicit ``eccentricity`` selects the exact osculating-element launch
+    at fixed semimajor axis and E0=pi/2. ``None`` retains the earlier unit-
+    radius radial-speed launch for numerical reference checks.
     With ``samples=None``, output spacing is at most 0.1 time units (at
     least 63 vertices per binary orbit), resolving inertial-frame loops.
     Each output state is an accepted integration endpoint, so no low-order
@@ -201,7 +250,12 @@ def integrate_orbit(mu, orbit, angle_deg, periods=2., samples=None,
     or r_star<0.02 stops integration. This is a numerical guard, not an
     exact encounter boundary at large mass ratio.
     """
-    state = initial_state(mu, orbit, angle_deg, radial_speed=radial_speed)
+    if eccentricity is None:
+        state = initial_state(mu, orbit, angle_deg, radial_speed=radial_speed)
+    else:
+        if radial_speed != 0:
+            raise ValueError("select eccentricity or a legacy radial_speed, not both")
+        state = initial_state_from_eccentricity(mu, orbit, angle_deg, eccentricity)
     if not np.isfinite(periods) or not 0 < periods <= 10:
         raise ValueError("periods must satisfy 0 < periods <= 10")
     if not np.isfinite(rtol) or not np.isfinite(atol) or rtol <= 0 or atol <= 0:
@@ -261,14 +315,14 @@ def integrate_orbit(mu, orbit, angle_deg, periods=2., samples=None,
     if mu >= ROUTH_MU:
         message += (f" L4 and L5 are linearly unstable for mu >= {ROUTH_MU:.7f}; "
                     "the selected family is only a launch preset.")
-    elif (mu > .001 or radial_speed != 0 or
+    elif (mu > .001 or radial_speed != 0 or eccentricity is not None or
           (orbit == "tadpole" and not VALIDATED_TADPOLE_ANGLE_RANGE[0] <= abs(angle_deg) <= VALIDATED_TADPOLE_ANGLE_RANGE[1])):
         message += " Exploratory initial conditions do not guarantee the selected orbit family."
     return Trajectory(times, states, jacobi, classification, completed, message)
 
 
 @lru_cache(maxsize=128)
-def checked_example(mu, orbit, centre="L4"):
+def checked_example(mu, orbit, centre="L4", *, eccentricity=None):
     """Find and check a launch at exactly ``mu``, or return ``None``.
 
     This is a finite six-reference-timescale tadpole check (ten for
@@ -282,8 +336,14 @@ def checked_example(mu, orbit, centre="L4"):
     searches are restricted to mu<=.001; a missing checked example makes no
     assertion that other horseshoe solutions do not exist.  Free exploration
     uses ``integrate_orbit`` at every allowed mass ratio.
+
+    Passing eccentricity explicitly (including zero) checks the fixed-a0,
+    E0=pi/2 launch at that exact requested eccentricity. ``None`` checks the
+    legacy unit-radius launch; those profiles cannot validate the newer ICs.
     """
     _validate_mu(mu)
+    if eccentricity is not None:
+        _validate_eccentricity(eccentricity)
     if orbit not in ("tadpole", "horseshoe"):
         raise ValueError("orbit must be 'tadpole' or 'horseshoe'")
     if centre not in ("L4", "L5"):
@@ -314,7 +374,8 @@ def checked_example(mu, orbit, centre="L4"):
     candidates = tuple(angle for angle in dict.fromkeys(round(float(a), 3) for a in candidates)
                        if orbit != "tadpole" or angle < 60.)
     for angle in candidates:
-        result = integrate_orbit(mu, orbit, sign*angle, periods=checked_periods, samples=3001)
+        result = integrate_orbit(mu, orbit, sign*angle, periods=checked_periods, samples=3001,
+                                 eccentricity=eccentricity)
         if not result.completed or not result.classification.startswith(orbit):
             continue
         radius = np.hypot(result.states[:, 0]+mu, result.states[:, 1])
@@ -331,5 +392,6 @@ def checked_example(mu, orbit, centre="L4"):
             enough_reversals = (theta.min() < np.pi/3 and theta.max() > 5*np.pi/3
                                 and np.count_nonzero(displacement[1:]*displacement[:-1] < 0) >= 3)
         if enough_reversals:
-            return CheckedExample(sign*angle, 0., result.classification, checked_periods, drift)
+            return CheckedExample(sign*angle, 0., result.classification, checked_periods, drift,
+                                  eccentricity=eccentricity)
     return None

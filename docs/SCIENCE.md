@@ -2,7 +2,7 @@
 
 The visualisations describe unperturbed, bound Kepler orbits and isotropic orientation statistics. Angles are in radians in the models and degrees in the controls. Rotations are right-handed and act on column vectors. Lengths are relative units; the orbital-elements page varies a, while the guiding-centre page fixes a = 1.
 
-The additional tadpole-and-horseshoe module solves the planar circular restricted three-body problem. Its equations, frame conventions, speed contours, parameter limits, and references to both supplied textbooks are documented separately in [COORBITAL_SCIENCE.md](COORBITAL_SCIENCE.md).
+The additional tadpole-and-horseshoe module solves the planar circular restricted three-body problem. Its particle-eccentricity control sets an initial star-centred osculating Kepler orbit; planetary perturbations then change that eccentricity. The equations, initial-phase convention, frame transformations, speed contours, parameter limits, and references to both supplied textbooks are documented separately in [COORBITAL_SCIENCE.md](COORBITAL_SCIENCE.md).
 
 ## Orbital elements
 

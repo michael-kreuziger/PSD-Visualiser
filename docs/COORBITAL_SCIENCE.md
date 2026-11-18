@@ -134,49 +134,101 @@ then determine the motion. Small epicyclic loops and changes in osculating
 eccentricity are legitimate features of the exact solution. A finite
 integration is an illustration and cannot prove stability for all time.
 
-The initial-condition construction places the particle at unit distance
-from the star at a selectable longitude `phi0`. The radial-speed control
-adds an outward velocity `vr` from 0 to 0.01 along the star-to-particle
-direction, in units of `n*a`:
+The particle-eccentricity control selects an **initial star-centred
+osculating eccentricity** `0 <= e0 <= 0.01`. This is the eccentricity of
+the instantaneous Kepler ellipse matching the particle's position and
+velocity relative to the star, using `GM_star = 1 - mu`. It does not
+change the primaries' circular orbits.
+
+The osculating semimajor axis is fixed at
 
 ```text
-(x0, y0) = (cos(phi0) - mu, sin(phi0))
-(vx0, vy0) = vr * (cos(phi0), sin(phi0)).
+a0 = (1 - mu)**(1/3),
+n0 = sqrt((1 - mu)/a0**3) = 1.
 ```
 
-The underlying numerical model accepts signed radial speeds, including
-inward launches, but the current interface permits only `0 <= vr <= 0.01`.
-At `vr = 0`, the particle initially
-corotates with the primaries; at nonzero `vr` it has that same angular
-velocity plus a radial component. This is not zero inertial velocity or
-a claim of an exact circular particle orbit. At the initial instant the
-star-relative tangential speed is one. Using `G*m_star = 1 - mu`, its
-two-body osculating eccentricity about the star is
-`sqrt(mu*mu + vr*vr)/(1 - mu)`. Thus for small `mu` and small radial kick,
-`e0` is approximately `abs(vr)`. This is an instantaneous two-body element,
-not a conserved eccentricity of the perturbed CR3BP orbit.
+This matches the initial osculating two-body mean motion to the binary
+mean motion, a useful co-orbital launch convention. It does not assert
+that the subsequent perturbed orbit has a constant mean motion or that
+every launch belongs to a librating 1:1-resonance family.
 
-The kick excites the faster epicyclic motion, allowing visible loops
+The initial eccentric anomaly is fixed at `E0 = pi/2`, choosing the
+outward-moving phase. Standard Kepler relations give
+
+```text
+r = a0*(1 - e0*cos(E0))
+vr = n0*a0*e0*sin(E0)/(1 - e0*cos(E0))
+vt = n0*a0*sqrt(1 - e0**2)/(1 - e0*cos(E0)).
+```
+
+At the chosen phase these simplify to `r0 = a0`, `vr0 = a0*e0`, and
+`vt0 = a0*sqrt(1 - e0**2)`. The last two velocities are measured relative
+to the star in an inertial frame. For the selectable starting polar
+longitude `phi0`, let `er = (cos(phi0), sin(phi0))` and
+`et = (-sin(phi0), cos(phi0))`. The barycentric rotating state is
+
+```text
+position0 = (-mu, 0) + a0*er
+velocity0 = a0*e0*er + a0*(sqrt(1 - e0**2) - 1)*et.
+```
+
+Thus both position and velocity are consistent with the selected
+eccentricity. Their star-relative specific two-body energy is
+`-GM_star/(2*a0)`, independent of `e0`, and their angular momentum is
+`a0*a0*sqrt(1 - e0**2)`. Changing eccentricity holds the initial
+osculating semimajor axis fixed instead of introducing an unintended
+change of orbital energy.
+
+`E0 = 90 degrees` is an eccentric anomaly, not a true anomaly. The true
+anomaly is `f0 = acos(-e0)`, so the osculating periapse direction is
+`phi0 - f0`. Holding the starting polar longitude fixed while varying
+eccentricity therefore changes that periapse direction. At `e0 = 0`
+the periapse is undefined and this phase is merely a coordinate convention.
+
+Zero initial eccentricity gives an initially circular **osculating**
+Kepler orbit about the star. It does not eliminate the planet's
+perturbations or imply a permanently circular CR3BP orbit. In particular,
+`phi0 = 60 degrees` is not the exact L4 equilibrium under this launch
+convention, because `a0 < 1`. The displayed current osculating eccentricity
+can evolve away from `e0` during the integration.
+
+For a rotating state `(x, y, vx, vy)`, the readout computes the current
+star-relative position and inertial velocity, expressed on rotating axes,
+as `rvec = (x + mu, y)` and `uvec = (vx - y, vy + x + mu)`. Its
+osculating eccentricity is the magnitude of
+
+```text
+evec = [(uvec.uvec - GM_star/|rvec|)*rvec
+        - (rvec.uvec)*uvec] / GM_star.
+```
+
+The common axis rotation does not change this magnitude. Subtracting the
+star's motion matters: the barycentric inertial velocity alone would
+give a different and incorrect star-centred osculating eccentricity.
+
+Nonzero eccentricity excites the faster epicyclic motion, allowing loops
 superposed on the slow tadpole libration. Near a triangular equilibrium,
 there are two linear normal modes; in the small-mass, small-eccentricity
 limit the fast epicycle approaches the familiar 2:1 tangential/radial
-ellipse. At larger kicks the two motions couple and a trajectory can leave
-the selected family. The radial-speed control therefore changes the
+ellipse. The two motions can couple and a trajectory can leave the
+selected family. The eccentricity control therefore changes the physical
 initial state rather than drawing a decorative epicycle around a fixed
 path. Changing the starting longitude also changes the Jacobi constant
 and subsequent motion; a starting longitude is not itself the measured
 libration amplitude.
 
 A leading epicyclic tadpole example uses `mu = 0.001`,
-`phi0 = 60 degrees`, `vr = 0.01`, and three reference times. Its selected
-speed contour is 0.02. Over that finite interval its star-relative radius
-ranges approximately from 0.98877 to 1.01127. This is a numerical example,
-not a proof of permanent stability.
+`phi0 = 60 degrees`, `e0 = 0.01`, and three reference times. Its selected
+speed contour is 0.02. Over that interval its star-relative radius ranges
+approximately from 0.98808 to 1.01194, and its current osculating
+eccentricity ranges from about 0.00904 to 0.01115 despite starting at
+exactly 0.01. This is a finite numerical example, not a proof of permanent
+stability.
 
-The interface uses `-5 <= log10(mu) <= -3` and `0 <= vr <= 0.01`.
-Its horseshoe starting-longitude interval was checked with zero radial kick
-to provide useful bounded examples. Manually edited tadpole angles and
-nonzero kicks are exploratory. These control ranges are not
+The interface uses `-5 <= log10(mu) <= -3` and `0 <= e0 <= 0.01`.
+The checked-example helper verifies initial conditions at the selected
+mass ratio and eccentricity to provide useful bounded examples. Manually edited tadpole angles and
+nonzero eccentricities are exploratory. These control ranges are not
 analytic stability boundaries or a complete catalogue of co-orbital
 solutions. The integrated path can show the selected family, a different
 family, circulation, transitions, or encounters. The readout reports a
@@ -185,10 +237,10 @@ finite-window geometric description.
 ## Choosing an example versus exploring initial conditions
 
 The CR3BP equations remain valid throughout the mass-ratio control range.
-The same longitude and radial kick, however, do not represent the same
+The same longitude and initial eccentricity, however, do not represent the same
 member of a co-orbital family at every mass ratio. Both the effective
 potential and the local normal modes change with `mu`. At a larger mass
-ratio, a launch far from 60 degrees or with a substantial radial kick can
+ratio, a launch far from 60 degrees or with substantial eccentricity can
 be outside the local tadpole region even though infinitesimal perturbations
 at L4 and L5 are linearly oscillatory. Reducing the displacement towards
 the triangular point can recover a bounded small-amplitude example for
@@ -209,9 +261,11 @@ available at the selected mass ratio, this does not establish that no
 such orbit exists anywhere in phase space.
 
 The interface can automatically load a checked example at the **current**
-mass ratio when the mass ratio, requested family, or tadpole centre changes.
-An explicit button reloads that example. Editing the starting longitude
-or radial velocity clears its checked-example status and explores the
+mass ratio and initial eccentricity when the mass ratio, requested family,
+or tadpole centre changes. It chooses the starting longitude while
+preserving those two selected parameters. An explicit button reloads that
+example. Editing the starting longitude
+or eccentricity clears its checked-example status and explores the
 entered initial conditions. If no checked example is available, the
 interface says so prominently and retains the selected mass ratio. The
 plot title reports the integrated motion rather than assuming it matches
@@ -302,14 +356,13 @@ locations. If `C` lies below the minimum of `2*U`, there is no zero-velocity
 curve in the plane and no forbidden region. That minimum is attained at
 L4 and L5 and equals `3 - mu + mu*mu`.
 
-For example, launching at exactly 60 degrees with a nonzero radial kick
-gives `C = C(L4) - vr*vr`. Since the triangular points minimise `2*U`,
-there is then no zero-velocity curve anywhere in the plane. Speeds smaller
-than `abs(vr)` also have no contour for that Jacobi constant. Thus the
-epicyclic example with `vr = 0.01` legitimately shows no zero-speed
-curve and no contour at speed 0.005. Its selected speed 0.02 can display
-a constant-speed contour. Missing zero-velocity
-curves do not imply that the particle must escape.
+The minimum allowed rotating speed anywhere in the plane is
+`sqrt(max(0, 3 - mu + mu*mu - C))`. It follows from the full Jacobi
+constant of the launch and is not generally equal to `e0`. For the
+epicyclic example at `mu = 0.001` and `e0 = 0.01`, the Jacobi constant
+lies below the minimum of `2*U`; no zero-speed curve exists. A speed
+of 0.005 also has no contour, while the selected speed 0.02 does.
+Missing zero-velocity curves do not imply that the particle must escape.
 
 The contour geometry depends on `mu`; speed labels also depend on the
 chosen orbit through `C`. In the inertial view these remain contours of
@@ -324,6 +377,8 @@ against the following passages in both supplied books.
 
 | Topic | Book section | Printed pages | PDF pages |
 | --- | --- | --- | --- |
+| Kepler radius, anomaly conversion, and velocity relations used for initial eccentricity | Murray & Dermott, §2.4, Eqs. 2.41–2.50; §2.5, Eq. 2.86 | 32–34, 41 | 47–49, 56 |
+| Kepler mean motion and initial radial/tangential velocities | Tremaine, §1.3, Eqs. 1.44–1.55 | 12–15 | 27–30 |
 | Units, barycentric rotating coordinates, and equations | Murray & Dermott, *Solar System Dynamics*, §3.2, Eqs. 3.1–3.22 | 64–67 | 79–82 |
 | Jacobi constant and forbidden regions | Murray & Dermott, §3.3, Eqs. 3.27–3.29 | 68–71 | 83–86 |
 | Locations of all five equilibria | Murray & Dermott, §3.6, especially Eq. 3.71 and Fig. 3.7 | 77–81 | 92–96 |

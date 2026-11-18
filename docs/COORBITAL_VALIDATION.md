@@ -1,16 +1,20 @@
 # Co-orbital module validation
 
-Checked on 17 November 2026 using the project's configured Python 3.11.15,
+Checked on 18 November 2026 using the project's configured Python 3.11.15,
 NumPy, Matplotlib, and PySide6 environment. Existing teaching pages and their
 tests are unchanged; the application registry adds one lazily loaded page.
 No dependencies were added.
 
 The current interface limits are `-5 <= log10(mu) <= -3`
-(`1e-5 <= mu <= 1e-3`) and initial outward radial speed from 0 to
-0.01 in units of `n*a`. The GUI epicyclic preset uses μ = 0.001,
-starting longitude 60°, radial speed 0.01, and three reference times.
-The smoke check completed as an L4 tadpole, with star-relative radii
-0.98877–1.01127 and Jacobi variation about 1.7 × 10⁻¹².
+(`1e-5 <= mu <= 1e-3`) and initial particle eccentricity `0 <= e0 <= 0.01`.
+The GUI epicyclic preset uses μ = 0.001, starting longitude 60°,
+initial eccentricity 0.01, and three reference times. The osculating
+semimajor axis is `(1 - mu)**(1/3)` and initial eccentric anomaly is 90°,
+choosing the outward phase. All GUI and checked-example launches use
+this eccentricity-based construction, including `e0 = 0`.
+The preset completes as an L4 tadpole over the requested interval, with
+star-relative radii 0.98808–1.01194 and current osculating eccentricities
+approximately 0.00904–0.01115, starting at exactly 0.01.
 The general numerical model retains broader parameter support; numerical
 benchmarks outside these bounds are identified below and are not current
 GUI settings.
@@ -24,7 +28,13 @@ printed/PDF page references. An independent review of the model and display
 checked Coriolis signs, potential and Jacobi conventions, numerical
 integration coefficients, reference-frame transformations, Lagrange-point
 positions, speed-contour levels, forbidden shading, and interpretation of
-the longitude diagnostic. No unresolved scientific errors were found.
+the longitude diagnostic. The initial-eccentricity construction was also
+derived independently from the Kepler position and velocity relations in
+both books: its recovered star-centred eccentricity is exactly `e0`, its
+osculating mean motion is one, and changing `e0` holds the initial two-body
+energy and semimajor axis fixed. The readout uses current star-relative
+osculating eccentricity, which need not remain at its initial value.
+No unresolved scientific errors were found.
 
 The stability and initial-condition discussion was rechecked against both
 books for the broader numerical-model tests. Murray & Dermott,
@@ -49,12 +59,19 @@ The interface reports the maximum absolute drift in the Jacobi constant.
 QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p 'test_coorbital*.py' -v
 ```
 
-All 35 targeted tests pass: 22 numerical checks and 13 Qt integration checks.
+All 42 targeted tests pass: 29 numerical checks and 13 Qt integration checks.
+
+Seven added numerical tests independently reconstruct the new osculating
+eccentricity, semimajor axis, energy, and angular momentum from Cartesian
+states; verify fixed initial Kepler mean motion and semimajor axis; check
+all 27 family/μ/e₀ combinations; and verify current-e reconstruction and
+checked-example metadata/cache fidelity. Together with the 22 retained
+legacy benchmarks, all 29 numerical tests pass.
 
 The model checks all five equilibrium-force residuals, the Coriolis and
 potential-gradient relation, barycentric primary positions and velocities,
 and inertial acceleration against the direct Newtonian gravitational forces.
-It also checks the speed-contour identity, L4/L5 launch symmetry, the
+It also checks the speed-contour identity, legacy L4/L5 launch symmetry, the
 small-amplitude libration period against the exact linear CR3BP frequency,
 convergence with tighter numerical tolerances, and honest reporting of
 encounters and orbit-family changes. Extended checks cover the radial
@@ -62,26 +79,30 @@ velocity launch, its signed direction and reflection symmetry, equilibrium
 launches below and above the Routh threshold, and finite integration at
 large mass ratios. A broader model benchmark with radial speed 0.08 is
 checked for a star-relative radial span above 0.18 and repeated fast
-angular-velocity reversals; that speed is outside the current GUI range.
+angular-velocity reversals. These legacy radial-speed initial conditions
+are independent numerical benchmarks and are not used by the current GUI.
 
-Both orbit families at the original bounded-example longitude endpoints were
+Under the earlier unit-radius, zero-radial-speed launch, both orbit families
+at the original bounded-example longitude endpoints were
 integrated for three nominal libration timescales at μ = 10⁻⁵, 10⁻⁴, and
 10⁻³. All completed with the expected family and Jacobi variation below
 2 × 10⁻¹⁰. Additional development checks sampled nine logarithmically spaced
 mass ratios and the shortest permitted duration. These checks establish a
 useful teaching envelope, not a mathematical boundary of stability. Those
 checks used zero radial kick and do not establish bounded motion over the
-manually edited initial conditions.
+manually edited initial conditions. These older benchmarks are not
+substitutes for verification of the new eccentricity-based launches.
 
-Broader numerical-model tests retain μ values up to 0.1 and signed
-radial kicks outside the current GUI bounds. They verify equilibrium
+Broader numerical-model tests retain μ values up to 0.1 and a legacy
+signed-radial-speed API that is not the GUI eccentricity control. They verify equilibrium
 classification and explicit triangular-point instability reporting above
 the Routh threshold, alongside nonzero-kick examples and encounter
-handling. These tests do not imply that larger mass ratios or kicks are
-currently selectable, or that every trajectory above the triangular-point
+handling. These tests do not imply that larger mass ratios or legacy
+radial-speed inputs are currently selectable, or that every trajectory above the triangular-point
 threshold is unstable.
 
 The checked-example helper integrates candidates at the exact selected μ
+and eccentricity, without resetting either control,
 for six reference times for tadpoles and ten for horseshoes, longer than
 the display's maximum duration of three reference times. Acceptance
 requires completion, the requested geometric family, star-relative radius
@@ -90,7 +111,14 @@ repeated angular crossings demonstrating motion in both directions.
 Unsuccessful candidates are not presented as checked family examples.
 These criteria are practical numerical checks, not a stability theorem.
 
-Additional broader-model checks used zero-kick tadpole launches at μ = 0.03,
+For the new eccentricity-based construction, 27 combinations were checked:
+μ = 10⁻⁵, 10⁻⁴, and 10⁻³; `e0 = 0, 0.005, 0.01`; and L4 tadpole,
+L5 tadpole, and horseshoe families. Checked examples were available for
+all 27 combinations while retaining the selected μ and initial
+eccentricity. Each zero-eccentricity launch used the new osculating
+construction rather than falling back to the legacy unit-radius launch.
+
+Additional legacy broader-model checks used zero-kick tadpole launches at μ = 0.03,
 0.035, 0.038, 0.0384, and 0.0385 with starting longitudes 58°, 59°, 59.5°,
 59.9°, and 59.99°, respectively. They remained in the L4 tadpole region
 over ten reference times; tighter-tolerance reintegrations differed by
@@ -108,7 +136,7 @@ mass ratios. An unavailable example must leave μ unchanged and be labelled
 as unavailable; it must not silently substitute a different mass ratio.
 The general model's forced-fallback regression verifies that every
 candidate is rounded to 0.001° precision **before** integration and that
-a candidate rounded to the exact 60° equilibrium is discarded. This
+a candidate rounded to 60° is discarded. This
 retains precision in broader-model examples near the Routh threshold,
 while the current UI only exposes the smaller mass ratios stated above.
 
@@ -120,19 +148,26 @@ preserve the integrated trajectory. Further checks cover contour levels
 C₀ and C₀ + v², the narrow forbidden lobe at μ = 10⁻⁵ and starting longitude
 55°, zero-speed contour deduplication, both tadpole centres, mass-dependent
 horseshoe controls, animation, pause on navigation, reset, and minimum-window
-layout. Display checks cover the current mass-ratio and radial-speed
+layout. Display checks cover the current mass-ratio and initial-eccentricity
 slider and typed-input bounds, conversion of the duration control to planet
-periods, the radial-speed preset, removal of the recent-history trail, and
+periods, the eccentricity preset, removal of the recent-history trail, and
 the fixed inertial legend with distinct Lagrange-point markers. For the
 epicyclic preset, the contour tests verify that zero speed and speed 0.005
-have no curve, the caption explains the minimum speed 0.01, and speed 0.02
+have no curve, the caption explains the minimum rotating speed computed
+from the actual Jacobi constant, and speed 0.02
 produces the selected contour.
+Eccentricity checks reconstruct the physical initial eccentricity from the
+actual state and confirm the current-e readout follows the integrated
+trajectory, rather than merely echoing the initial control. The fixed
+outward eccentric-anomaly phase is explained beside the control, and
+zero initial eccentricity uses the new launch construction explicitly.
 Family-selection checks also cover automatic example loading on mass,
 family, and centre changes and restoring a checked example after manually
-edited initial conditions while retaining the selected μ. The main plot reports the integrated family instead of
+edited initial conditions while retaining the selected μ and eccentricity.
+The main plot reports the integrated family instead of
 assuming that every launch matches the family selector.
 
-The full suite runs 80 tests and reports 79 passes and one pre-existing failure in
+The full suite runs 87 tests and reports 86 passes and one pre-existing failure in
 `test_gui.TeachingInterfaceTests.test_home_disclaimer_module_list_and_toolbar_navigation`:
 the expected Home disclaimer wording differs from the application's current
 wording. This same failure occurred before adding the module. The disclaimer
@@ -142,6 +177,8 @@ and the existing test were left unchanged. `git diff --check` also passes.
 
 Offscreen Qt renders were visually inspected at 1280 × 860 and 1024 × 720,
 including both orbit families, both frames, and enabled speed contours.
+Updated renders include the initial-eccentricity control, fixed E₀ phase
+note, current osculating-e readout, and inertial speed contours.
 The sidebar scrolls vertically at smaller window sizes. L1–L5 are labelled;
 the barycentre is marked separately from the star. The entire integrated
 path is shown without an additional recent-history trail. A fixed legend

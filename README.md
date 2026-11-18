@@ -6,7 +6,7 @@ Available visualisations (will be expanded throughout the course):
 - **Orbital elements:** explore the effects of the six orbital elements on a 3D orbit
 - **Guiding centre:** explore how the guiding-centre approximation works and compares to the exact solution.
 - **Averaging sin I:** see where uniformly drawn orbit orientations, i.e., angular-momentum directions fall on a sphere
-- **Tadpole & horseshoe:** integrate co-orbital motion in the circular restricted three-body problem; switch between corotating and barycentric inertial frames
+- **Tadpole & horseshoe:** integrate co-orbital motion in the circular restricted three-body problem; vary the particle's initial eccentricity and switch between corotating and barycentric inertial frames
 
 <p>
   <img src="docs/Screenshot_orbital_elements.png" alt="Orbital elements visualisation" width="49%">
