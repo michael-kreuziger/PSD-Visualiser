@@ -47,11 +47,17 @@ def _inclinations_page():
     return InclinationsPage()
 
 
+def _coorbital_page():
+    from .pages.coorbital import CoorbitalPage
+    return CoorbitalPage()
+
+
 # Add a ModuleSpec here to expose a new module on Home and the toolbar.
 MODULES = (
     ModuleSpec("orbital", "Orbital elements", "Explore the six elements that describe an orbit in three dimensions.", _orbital_page),
     ModuleSpec("guiding", "Guiding centre", "Compare an elliptical orbit with its circular guiding centre and epicycle.", _guiding_page),
     ModuleSpec("inclinations", "Averaging sin I", "Sample random orbital orientations and connect geometry to probability.", _inclinations_page),
+    ModuleSpec("coorbital", "Tadpole & horseshoe", "Explore co-orbital motion and speed contours in the circular restricted three-body problem.", _coorbital_page),
 )
 
 

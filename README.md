@@ -6,6 +6,7 @@ Available visualisations (will be expanded throughout the course):
 - **Orbital elements:** explore the effects of the six orbital elements on a 3D orbit
 - **Guiding centre:** explore how the guiding-centre approximation works and compares to the exact solution.
 - **Averaging sin I:** see where uniformly drawn orbit orientations, i.e., angular-momentum directions fall on a sphere
+- **Tadpole & horseshoe:** integrate co-orbital motion in the circular restricted three-body problem; switch between corotating and barycentric inertial frames
 
 <p>
   <img src="docs/Screenshot_orbital_elements.png" alt="Orbital elements visualisation" width="49%">
@@ -55,7 +56,7 @@ psd_visualiser/
     widgets.py             Shared plotting canvas, sliders, and styling
     camera.py              Turn-and-tilt mouse controls for the orbital view
     models/                GUI-independent numerical calculations
-    pages/                 Orbital, guiding-centre, and inclination interfaces
+    pages/                 Orbital, guiding-centre, inclination, and co-orbital interfaces
 tests/                     Numerical tests and GUI smoke tests
 docs/
     SCIENCE.md             Equations, conventions, and textbook references
